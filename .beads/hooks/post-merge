@@ -36,3 +36,10 @@ if command -v bd >/dev/null 2>&1; then
   if [ $_bd_exit -ne 0 ]; then exit $_bd_exit; fi
 fi
 # --- END BEADS INTEGRATION v1.2.2 ---
+
+# --- BEGIN sdlc post-merge chain (sd-pdx.9) ---
+# This dir shadows the global core.hooksPath (bd or another tool set it
+# locally for this repo) — githooks/post-merge would otherwise never run
+# here. Re-run scripts/tool-install-hooks.sh if this block ever goes missing.
+sh "$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd -P)/githooks/post-merge" || true
+# --- END sdlc post-merge chain (sd-pdx.9) ---
