@@ -1,6 +1,7 @@
 package upcheck
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeInstall stands in for a bin directory holding an installed binary. The
@@ -282,4 +284,94 @@ func TestCopyBinaryTreatsAMissingSourceAsNothingToPreserve(t *testing.T) {
 	if isFile(filepath.Join(dir, "absent.prev")) {
 		t.Error("copyBinary invented a .prev out of a file that was not there")
 	}
+}
+
+// AC (mn-o9o): two updates of one binary started together — the second exits
+// non-zero naming the lock holder.
+//
+// TestUpdateNamesTheHolderOfTheLock above plants a lock file and watches an
+// update refuse it, which is the same code path but not the same claim: it
+// proves the refusal, not that two updates racing for the lock cannot both take
+// it. This one runs a real second update while a real first one holds the lock.
+//
+// The overlap is arranged rather than raced. Two goroutines started at the same
+// moment may not overlap at all — the first can finish before the second is
+// scheduled — and a test that passes because nothing collided is worse than no
+// test. So the first update's install blocks until the second has had its turn,
+// which makes contention certain instead of likely. The lock itself is taken
+// with O_CREATE|O_EXCL, so what happens when two arrive at once is the file
+// system's answer, not this test's.
+func TestUpdateRefusesASecondUpdateWhileTheFirstIsRunning(t *testing.T) {
+	first := newChecker(t)
+	f := newFakeInstall(t, currentVersion)
+
+	// The install signals that it is running, then waits to be released — so
+	// the first update is holding the lock for as long as the second needs.
+	running := filepath.Join(f.dir, "install-running")
+	release := filepath.Join(f.dir, "install-may-finish")
+	first.SetGoCmdForTest(t, goStub(t, f, fmt.Sprintf(
+		`touch '%s'; i=0; while [ ! -f '%s' ] && [ "$i" -lt 60 ]; do sleep 0.05; i=$((i+1)); done; %s`,
+		running, release, installsVersion(f, newerVersion))))
+
+	// A second Checker over the same cache directory and the same binary is
+	// what a second process running `update` looks like from here.
+	second, err := New(Config{
+		Module:         testModule,
+		Binary:         testBinary,
+		CacheDir:       first.CacheDir(),
+		InstallTimeout: 5 * time.Second,
+		VersionArgs:    []string{"version"},
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	second.SetBuildForTest(t, Build{Version: currentVersion})
+	second.SetGoCmdForTest(t, goStub(t, f, installsVersion(f, currentVersion)))
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := first.Update(context.WithoutCancel(t.Context()))
+		firstDone <- err
+	}()
+	waitForFile(t, running)
+
+	_, err = second.Update(t.Context())
+	if !errors.Is(err, ErrLocked) {
+		t.Fatalf("the second update returned %v, want %v", err, ErrLocked)
+	}
+	if !strings.Contains(err.Error(), fmt.Sprintf("pid %d", os.Getpid())) {
+		t.Errorf("the refusal %q does not name the process holding the lock", err)
+	}
+	if !strings.Contains(err.Error(), second.LockPathForTest()) {
+		t.Errorf("the refusal %q does not name the lock file to remove", err)
+	}
+
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatalf("releasing the first install: %v", err)
+	}
+	if err := <-firstDone; err != nil {
+		t.Fatalf("the first update failed: %v", err)
+	}
+	// The refused update installed nothing: the binary is what the first update
+	// put there, not what the second would have.
+	if got := runFake(t, f.binary); got != newerVersion {
+		t.Errorf("the binary is %s, want the first update's %s", got, newerVersion)
+	}
+	// And the lock is gone, so a third update is not refused forever.
+	if isFile(first.LockPathForTest()) {
+		t.Errorf("the lock survived the update that held it: %s", first.LockPathForTest())
+	}
+}
+
+// waitForFile blocks until path exists, and fails the test rather than hanging
+// if it never does.
+func waitForFile(t *testing.T, path string) {
+	t.Helper()
+	for range 200 {
+		if isFile(path) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("waiting for %s: it never appeared", path)
 }
