@@ -1,0 +1,37 @@
+# Deny by default. Everything is ignored unless allowlisted below.
+# Adding a path here is a deliberate act — no tool gets to drop files in this tree.
+*
+
+!.gitignore
+!README.md
+!.claude/
+!.claude/rules/
+!.claude/rules/**
+!Makefile
+!go.mod
+!go.sum
+!.golangci.yml
+!.beads/
+!.beads/**
+!.githooks/
+!.githooks/**
+!.github/
+!.github/**
+!.sandbox/
+!.sandbox/**
+!docs/
+!docs/**
+!*.go
+
+# Sandbox: cache + transient artifacts
+.sandbox/cache/
+.sandbox/setup-report.json
+
+# bd audit log: Dolt is the record; git PRs per row were noise (sd-24td)
+.beads/interactions.jsonl
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/

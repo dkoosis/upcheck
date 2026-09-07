@@ -1,0 +1,5 @@
+# Tracked bd declaration. Surface 1 reads this file; --local
+# compares it against the live bd config on this machine.
+custom.plan_dir: "~/Projects/kg/Project/upcheck/plans"
+issue-prefix: "uc"
+sync.remote: "git+https://github.com/dkoosis/upcheck.git"

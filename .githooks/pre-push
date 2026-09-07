@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# pre-push — tracked hook (shape B). core.hooksPath points at .githooks; `conform --local`
+# checks that it does.
+set -euo pipefail
+
+# BEGIN BEADS INTEGRATION
+# Hand the event to bd's shim when this clone is hydrated. A clone without
+# bd installed skips the delegation rather than blocking the commit.
+if [ -x ".beads/hooks/pre-push" ]; then
+  ".beads/hooks/pre-push" "$@"
+fi
+# END BEADS INTEGRATION
