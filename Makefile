@@ -40,3 +40,6 @@ race: ## Run tests with the race detector (fresh run)
 
 vuln: ## Scan for known vulnerabilities
 	govulncheck ./...
+
+clean: ## Remove build outputs
+	go clean ./...
