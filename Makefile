@@ -6,7 +6,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-.PHONY: check audit help vet lint test build selfcheck race vuln
+.PHONY: check audit help vet lint test build selfcheck race vuln clean
 
 help: ## Show this help — the 3 verbs, identical in every dkoosis repo
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_.-]+:.*?## / { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -33,10 +33,14 @@ build: ## Compile everything
 # pin is a deliberate PR. It is a tool, not a runtime import — the zero-
 # dependency rule in .claude/rules/standard-repo.md is about go list -deps.
 selfcheck: ## Run conform (fleet SDLC checker) against this repo
-	go tool conform
+	go tool conform-to-sdlc
 
 race: ## Run tests with the race detector (fresh run)
 	go test -race -count=1 -cover ./...
 
 vuln: ## Scan for known vulnerabilities
 	govulncheck ./...
+
+clean: ## Remove sandbox build artifacts (upcheck is a library — no binary to remove)
+	@rm -rf .sandbox/bin/linux-amd64 .sandbox/bin/linux-arm64 .sandbox/cache
+	@echo "=== clean ==="
