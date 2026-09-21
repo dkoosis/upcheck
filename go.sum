@@ -1,5 +1,5 @@
-github.com/dkoosis/conform-to-sdlc v0.3.0 h1:WDSzbY1RjqWxXW0dMfNp7aGd58fbp5HhXpzn3+UiRKA=
-github.com/dkoosis/conform-to-sdlc v0.3.0/go.mod h1:p5Nu8EntCJQ1k4yqTlAUDYRpdvpkebWjLcPJCVUgKlM=
+github.com/dkoosis/conform-to-sdlc v0.3.2 h1:ycK/sz0qkekePD5dRNsH5YbJTmuA463Wh507pZ+boMI=
+github.com/dkoosis/conform-to-sdlc v0.3.2/go.mod h1:p5Nu8EntCJQ1k4yqTlAUDYRpdvpkebWjLcPJCVUgKlM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
