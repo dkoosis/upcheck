@@ -167,6 +167,54 @@ func TestCheckStartsAResolutionOnlyWhenItIsWorthIt(t *testing.T) {
 	}
 }
 
+// A refresh child takes up to FetchTimeout to finish, and only its finish
+// rewrites the stamp. Until then every call sees the same stale stamp, so Check
+// has to record the attempt itself or each call in that window forks another
+// child.
+func TestCheckStartsOneResolutionWhileTheFirstIsStillRunning(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		setup func(t *testing.T, c *Checker)
+	}{
+		{"nothing has been checked yet", func(*testing.T, *Checker) {}},
+		{"the stamp is old", func(t *testing.T, c *Checker) { seed(t, c, newerVersion, time.Now().Add(-48*time.Hour)) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newChecker(t)
+			spawns := c.CountSpawnsForTest(t)
+			tc.setup(t, c)
+			prev, _ := c.ReadStamp()
+
+			for range 10 {
+				c.Check(t.Context())
+			}
+			if *spawns != 1 {
+				t.Fatalf("10 back-to-back Checks started %d resolutions, want 1", *spawns)
+			}
+			s, ok := c.ReadStamp()
+			if !ok {
+				t.Fatal("Check left no record that a resolution was started")
+			}
+			if s.Latest != prev.Latest {
+				t.Errorf("Check overwrote the last answer %q with %q", prev.Latest, s.Latest)
+			}
+		})
+	}
+}
+
+func TestCheckStartsAnotherResolutionOnceTheRecordedAttemptAgesOut(t *testing.T) {
+	c := newChecker(t)
+	spawns := c.CountSpawnsForTest(t)
+	c.Check(t.Context())
+	// The child died without finishing: only the attempt Check recorded is left,
+	// and it has aged past StaleAfter.
+	seed(t, c, "", time.Now().Add(-48*time.Hour))
+	c.Check(t.Context())
+	if *spawns != 2 {
+		t.Errorf("Check started %d resolutions, want 2: one per stale window", *spawns)
+	}
+}
+
 func TestCheckDoesNotWaitForTheChild(t *testing.T) {
 	// The rule this guards is the whole shape of the package: a currency check
 	// may not be part of what the caller waited for. The child here is this

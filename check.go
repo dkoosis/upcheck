@@ -82,7 +82,20 @@ func (c *Checker) Check(ctx context.Context) {
 	if !c.buildOf().Installed() {
 		return
 	}
-	if s, ok := c.ReadStamp(); ok && !c.Stale(s, time.Now()) {
+	s, ok := c.ReadStamp()
+	now := time.Now()
+	if ok && !c.Stale(s, now) {
+		return
+	}
+	// Record the attempt before starting it. The child takes up to
+	// Config.FetchTimeout and only its finish rewrites the stamp, so without
+	// this every call in that window would see the same stale stamp and fork
+	// another child. The last answer stays; a child that dies leaves only this
+	// record, and the next check waits out StaleAfter like any failed one. A
+	// stamp that cannot be written cannot stop the next call either, so it
+	// starts nothing.
+	s.Checked = now
+	if c.WriteStamp(s) != nil {
 		return
 	}
 	c.spawn(ctx)
