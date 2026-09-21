@@ -274,6 +274,34 @@ func TestInstallTargetFallsBackToThisProcess(t *testing.T) {
 	}
 }
 
+func TestInstallTargetRefusesABinaryOutsideWhereGoInstallWrites(t *testing.T) {
+	// The toolchain says installs land in gobin, and the binary is not there —
+	// it is this process, running from somewhere else. An update would write to
+	// gobin and then report this untouched file as the new install, so it must
+	// refuse and name both places instead.
+	gobin := t.TempDir()
+	c := newChecker(t)
+	c.SetGoCmdForTest(t, stubGo(t, fmt.Sprintf(
+		"case \"$1\" in\n  env) printf '%s\\n\\n' ;;\n  *) exit 1 ;;\nesac", gobin)))
+
+	got, err := c.installTarget(t.Context())
+	if !errors.Is(err, ErrNoTarget) {
+		t.Fatalf("installTarget = %q, %v; want %v", got, err, ErrNoTarget)
+	}
+	exe, xerr := os.Executable()
+	if xerr != nil {
+		t.Skip("this platform cannot name its own executable")
+	}
+	if resolved, rerr := filepath.EvalSymlinks(exe); rerr == nil {
+		exe = resolved
+	}
+	for _, want := range []string{exe, filepath.Join(gobin, testBinary)} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal %q does not name %s", err, want)
+		}
+	}
+}
+
 func TestCopyBinaryTreatsAMissingSourceAsNothingToPreserve(t *testing.T) {
 	// A first install has no binary to copy, and refusing over that would be
 	// refusing the install.

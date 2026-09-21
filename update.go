@@ -120,10 +120,11 @@ func (c *Checker) runVersion(ctx context.Context, target string) (string, error)
 // It asks the toolchain rather than guessing, because the toolchain is the only
 // thing that knows: GOBIN wins when it is set, GOPATH/bin is the fallback, and
 // both can come from a config file rather than the environment this process
-// happens to have. os.Executable is the last resort, for a binary somebody
-// copied somewhere else — and it is a resort rather than the first answer,
-// because it names where the old binary is running from, which is not
-// necessarily where the new one will land.
+// happens to have. os.Executable is the last resort, for when the toolchain
+// cannot answer — and only then, because it names where the old binary is
+// running from, which is not where the new one will land. When the toolchain
+// does answer and this process runs from somewhere else, that is an error:
+// installing would write one file and report another.
 func (c *Checker) installTarget(ctx context.Context) (string, error) {
 	dir := c.goBinDir(ctx)
 	if dir != "" {
@@ -143,6 +144,10 @@ func (c *Checker) installTarget(ctx context.Context) (string, error) {
 	}
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
+	}
+	if dir != "" {
+		return "", fmt.Errorf("%w: this binary runs from %s, but %s writes %s, so an update would leave this one untouched",
+			ErrNoTarget, exe, c.InstallCommand(), filepath.Join(dir, c.cfg.Binary))
 	}
 	return exe, nil
 }
