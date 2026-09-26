@@ -11,6 +11,8 @@
 !go.mod
 !go.sum
 !.golangci.yml
+!.golangci-rules/
+!.golangci-rules/**
 !.beads/
 !.beads/**
 !.githooks/
