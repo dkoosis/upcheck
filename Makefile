@@ -6,12 +6,12 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-.PHONY: check audit help vet lint test build selfcheck race vuln clean
+.PHONY: check audit help vet lint test build selfcheck race vuln clean pack-drift
 
 help: ## Show this help — the 3 verbs, identical in every dkoosis repo
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_.-]+:.*?## / { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-check: vet lint test build selfcheck ## Fast gate — vet + lint + test + build + conform. Pre-commit; required in CI.
+check: vet lint test build pack-drift selfcheck ## Fast gate — vet + lint + test + build + pack-drift + conform. Pre-commit; required in CI.
 	@echo "=== check pass ==="
 
 audit: check race vuln ## Exhaustive validation — the gate, plus race and vulnerabilities
@@ -44,3 +44,6 @@ vuln: ## Scan for known vulnerabilities
 clean: ## Remove sandbox build artifacts (upcheck is a library — no binary to remove)
 	@rm -rf .sandbox/bin/linux-amd64 .sandbox/bin/linux-arm64 .sandbox/cache
 	@echo "=== clean ==="
+
+pack-drift: ## Fail if the copied lintbrush pack rules drifted from upstream (network-soft)
+	@.golangci-rules/check-pack-drift.sh

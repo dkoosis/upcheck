@@ -63,12 +63,12 @@ func parseSemver(v string) (semverParts, bool) {
 	for i := range 3 {
 		field := rest
 		if i < 2 {
-			dot := strings.IndexByte(rest, '.')
-			if dot < 0 {
+			var found bool
+			field, rest, found = strings.Cut(rest, ".")
+			if !found {
 				return p, false
 			}
-			field, rest = rest[:dot], rest[dot+1:]
-		} else if strings.IndexByte(rest, '.') >= 0 {
+		} else if strings.Contains(rest, ".") {
 			return p, false
 		}
 		n, ok := parseNumericID(field)
