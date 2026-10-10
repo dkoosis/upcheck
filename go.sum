@@ -1,5 +1,5 @@
-github.com/dkoosis/conform-to-sdlc v0.3.2 h1:ycK/sz0qkekePD5dRNsH5YbJTmuA463Wh507pZ+boMI=
-github.com/dkoosis/conform-to-sdlc v0.3.2/go.mod h1:p5Nu8EntCJQ1k4yqTlAUDYRpdvpkebWjLcPJCVUgKlM=
+github.com/dkoosis/conform-to-sdlc v0.3.5-0.20261005021949-3c0bd7b9e254 h1:/UyxuhNcUnmEQYUTIy+dT3muZA9aafIb9/6QzfZ2o4E=
+github.com/dkoosis/conform-to-sdlc v0.3.5-0.20261005021949-3c0bd7b9e254/go.mod h1:p5Nu8EntCJQ1k4yqTlAUDYRpdvpkebWjLcPJCVUgKlM=
 github.com/quasilyte/go-ruleguard/dsl v0.3.23 h1:lxjt5B6ZCiBeeNO8/oQsegE6fLeCzuMRoVWSkXC4uvY=
 github.com/quasilyte/go-ruleguard/dsl v0.3.23/go.mod h1:KeCP03KrjuSO0H1kTuZQCWlQPulDV6YMIXmpQss17rU=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
