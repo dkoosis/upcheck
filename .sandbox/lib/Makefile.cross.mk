@@ -14,6 +14,8 @@ GOVULNCHECK_VER   ?= v1.1.4
 GOFUMPT_VER       ?= v0.9.2
 GOIMPORTS_VER     ?= v0.39.0
 MAGE_VER          ?= v1.15.0
+# nilaway publishes no tags; the pin is a pseudo-version.
+NILAWAY_VER       ?= v0.0.0-20260808063849-8649a03c818a
 BAT_VER           ?= v0.25.0
 HYPERFINE_VER     ?= v1.20.0
 # Pinned per architecture and checked after download (surmado review of
@@ -22,6 +24,10 @@ HYPERFINE_VER     ?= v1.20.0
 # (or any release to date) — amd64 and arm64 cannot share musl here.
 HYPERFINE_SHA256_AMD64 ?= 3285ec7959285288137043dd81dce0dde056227018a8277532d9a364b4f03c2b
 HYPERFINE_SHA256_ARM64 ?= 90875cb1db7a1d797c311174d061728361e58fc70e3b62262a00635ac3b1997c
+# Pinned per architecture and checked after download (surmado review of
+# dkoosis/ferret#174 and dkoosis/mnemd#167: the download had no checksum).
+BAT_SHA256_AMD64 ?= 93f47d76abe328c402ef712e9ac92aa6d5bc84d5adcbcaf0bbc5665e5275a941
+BAT_SHA256_ARM64 ?= d155df218dc2d662da191e2dacddc71c90197b62ebe7e2923a659e5dd055d5cb
 SNIPE_SRC         ?= $(HOME)/Projects/snipe
 FO_SRC            ?= $(HOME)/Projects/fo
 GOMOD_VER         := $(shell awk '/^go /{print $$2}' go.mod)
@@ -41,9 +47,11 @@ cross-arm64: ## Cross-compile linux/arm64 sandbox tools
 
 _cross-build:
 	@# Pre-flight: local Go must be >= go.mod target
-	@LOCAL_GO=$$(go version | sed 's/.*go\([0-9]*\.[0-9]*\).*/\1/'); \
-	MOD_MIN=$$(echo $(GOMOD_VER) | cut -d. -f1)$$(printf '%03d' $$(echo $(GOMOD_VER) | cut -d. -f2)); \
-	LOC_MIN=$$(echo $$LOCAL_GO | cut -d. -f1)$$(printf '%03d' $$(echo $$LOCAL_GO | cut -d. -f2)); \
+	@LOCAL_GO=$$(go env GOVERSION); LOCAL_GO=$${LOCAL_GO#go}; \
+	L_MAJ=$${LOCAL_GO%%.*}; L_REST=$${LOCAL_GO#*.}; L_MIN=$${L_REST%%.*}; L_MIN=$${L_MIN%%[!0-9]*}; LOCAL_GO=$$L_MAJ.$$L_MIN; \
+	M_VER=$(GOMOD_VER); M_MAJ=$${M_VER%%.*}; M_REST=$${M_VER#*.}; \
+	MOD_MIN=$$M_MAJ$$(printf '%03d' $${M_REST%%.*}); \
+	LOC_MIN=$$L_MAJ$$(printf '%03d' $$L_MIN); \
 	if [ "$$LOC_MIN" -lt "$$MOD_MIN" ]; then \
 		echo "FATAL: local go$$LOCAL_GO < go.mod go$(GOMOD_VER)"; \
 		exit 1; \
@@ -109,12 +117,24 @@ _cross-build:
 				echo "  (exists, skipping)"; \
 			else \
 				case "$(CROSS_ARCH)" in \
-					amd64) BAT_TRIPLE="x86_64-unknown-linux-musl" ;; \
-					arm64) BAT_TRIPLE="aarch64-unknown-linux-gnu" ;; \
+					amd64) BAT_TRIPLE="x86_64-unknown-linux-musl"; BAT_SHA256="$(BAT_SHA256_AMD64)" ;; \
+					arm64) BAT_TRIPLE="aarch64-unknown-linux-gnu"; BAT_SHA256="$(BAT_SHA256_ARM64)" ;; \
 				esac; \
 				TMP=$$(mktemp -d); \
-				curl -fsSL "https://github.com/sharkdp/bat/releases/download/$(BAT_VER)/bat-$(BAT_VER)-$$BAT_TRIPLE.tar.gz" -o "$$TMP/a.tgz" && \
-					tar xz -C "$$TMP" -f "$$TMP/a.tgz" && \
+				curl -fsSL --connect-timeout 10 --max-time 60 \
+					"https://github.com/sharkdp/bat/releases/download/$(BAT_VER)/bat-$(BAT_VER)-$$BAT_TRIPLE.tar.gz" \
+					-o "$$TMP/a.tgz" && \
+				if command -v sha256sum >/dev/null 2>&1; then \
+					set -- $$(sha256sum "$$TMP/a.tgz"); BAT_GOT=$$1; \
+				else \
+					set -- $$(shasum -a 256 "$$TMP/a.tgz"); BAT_GOT=$$1; \
+				fi; \
+				if [ "$$BAT_GOT" != "$$BAT_SHA256" ]; then \
+					echo "FATAL: bat $(CROSS_ARCH) sha256 mismatch: got $$BAT_GOT, want $$BAT_SHA256"; \
+					rm -rf "$$TMP"; \
+					exit 1; \
+				fi; \
+				tar xz -C "$$TMP" -f "$$TMP/a.tgz" && \
 				cp "$$TMP"/bat-*/bat $(SANDBOX_BIN_DIR)/linux-$(CROSS_ARCH)/bat && \
 				rm -rf "$$TMP"; \
 			fi ;; \
@@ -132,9 +152,9 @@ _cross-build:
 					"https://github.com/sharkdp/hyperfine/releases/download/$(HYPERFINE_VER)/hyperfine-$(HYPERFINE_VER)-$$HF_TRIPLE.tar.gz" \
 					-o "$$TMP/a.tgz" && \
 				if command -v sha256sum >/dev/null 2>&1; then \
-					HF_GOT=$$(sha256sum "$$TMP/a.tgz" | cut -d' ' -f1); \
+					set -- $$(sha256sum "$$TMP/a.tgz"); HF_GOT=$$1; \
 				else \
-					HF_GOT=$$(shasum -a 256 "$$TMP/a.tgz" | cut -d' ' -f1); \
+					set -- $$(shasum -a 256 "$$TMP/a.tgz"); HF_GOT=$$1; \
 				fi; \
 				if [ "$$HF_GOT" != "$$HF_SHA256" ]; then \
 					echo "FATAL: hyperfine $(CROSS_ARCH) sha256 mismatch: got $$HF_GOT, want $$HF_SHA256"; \
@@ -151,6 +171,9 @@ _cross-build:
 		mage) \
 			echo "-- mage $(MAGE_VER)"; \
 			xtool_build github.com/magefile/mage $(MAGE_VER) mage ;; \
+		nilaway) \
+			echo "-- nilaway $(NILAWAY_VER)"; \
+			xtool_build go.uber.org/nilaway/cmd/nilaway $(NILAWAY_VER) nilaway ;; \
 		dtree) \
 			echo "-- dtree (manually-managed shell script — no version pin or build-from-source)"; \
 			if [ -f ".sandbox/codex/dtree" ]; then \
@@ -168,18 +191,18 @@ _cross-build:
 		echo "-- upx compressing"; \
 		for f in $(SANDBOX_BIN_DIR)/linux-$(CROSS_ARCH)/*; do \
 			[ -f "$$f" ] || continue; \
-			case "$$f" in *.tmp|*.upx) rm -f "$$f"; continue;; esac; \
-			file "$$f" | grep -q ELF || continue; \
-			BEFORE=$$(du -h "$$f" | cut -f1); \
+			case "$$f" in *.tmp) rm -f "$$f"; continue;; *.upx) rm -f "$$f"; continue;; esac; \
+			case "$$(file "$$f")" in *ELF*) ;; *) continue;; esac; \
+			set -- $$(du -h "$$f"); BEFORE=$$1; \
 			if upx -t "$$f" >/dev/null 2>&1; then \
 				echo "  $$(basename $$f): $$BEFORE (already packed)"; \
 				continue; \
 			fi; \
 			cp "$$f" "$$f.tmp" && \
 			upx -q --best --no-backup "$$f.tmp" >/dev/null 2>&1 && \
-			file "$$f.tmp" | grep -q ELF && { \
+			case "$$(file "$$f.tmp")" in *ELF*) true;; *) false;; esac && { \
 				mv "$$f.tmp" "$$f"; \
-				AFTER=$$(du -h "$$f" | cut -f1); \
+				set -- $$(du -h "$$f"); AFTER=$$1; \
 				echo "  $$(basename $$f): $$BEFORE -> $$AFTER"; \
 			} || { rm -f "$$f.tmp"; echo "  $$(basename $$f): $$BEFORE (skipped — upx failed or produced invalid binary)"; }; \
 		done; \
@@ -188,4 +211,4 @@ _cross-build:
 	fi
 	@echo "-- result:"
 	@du -sh $(SANDBOX_BIN_DIR)/linux-$(CROSS_ARCH)/
-	@du -h $(SANDBOX_BIN_DIR)/linux-$(CROSS_ARCH)/* | sort -rh
+	@ls -lhS $(SANDBOX_BIN_DIR)/linux-$(CROSS_ARCH)/
