@@ -187,7 +187,10 @@ func (c *Checker) goBinDir(ctx context.Context) string {
 // isFile reports whether p exists and is a regular file.
 func isFile(p string) bool {
 	info, err := os.Stat(p)
-	return err == nil && info.Mode().IsRegular()
+	if err != nil || info == nil {
+		return false
+	}
+	return info.Mode().IsRegular()
 }
 
 // copyBinary writes src to dst through a temporary file in the same directory,

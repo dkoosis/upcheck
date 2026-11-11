@@ -95,6 +95,12 @@ func TestNewDefaults(t *testing.T) {
 	if got, want := c.InstallCommand(), "go install "+testModule+"/cmd/go-tool@latest"; got != want {
 		t.Errorf("InstallCommand = %q, want %q", got, want)
 	}
+	if got := c.Module(); got != testModule {
+		t.Errorf("Module = %q, want %q", got, testModule)
+	}
+	if got, want := c.Binary(), "go-tool"; got != want {
+		t.Errorf("Binary = %q, want %q", got, want)
+	}
 }
 
 func TestInstallCommandForARootCommand(t *testing.T) {
