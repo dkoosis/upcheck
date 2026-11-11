@@ -18,7 +18,7 @@ inventory.
 `semver.go` exists rather than an import of `golang.org/x/mod/semver`. A change
 that adds an import outside `std` is a change to what upcheck is, not a
 convenience — say so out loud before making it. Tool dependencies in `go.mod`
-(conform) are not runtime dependencies and do not count.
+(repo-standard) are not runtime dependencies and do not count.
 
 ‡ **A currency check never runs on the caller's path.** `Notice` is one file
 read. `Check` starts a detached child and returns. Anything that would make a
