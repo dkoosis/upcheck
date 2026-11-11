@@ -78,7 +78,7 @@ func (c *Checker) Update(ctx context.Context) (UpdateResult, error) {
 
 	installCtx, cancel := context.WithTimeout(ctx, c.cfg.InstallTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(installCtx, c.goCmd, "install", c.InstallSpec())
+	cmd := exec.CommandContext(installCtx, c.goCmd, "install", c.InstallSpec()) //nolint:gosec // goCmd and the spec come from the caller's Config, not from untrusted input
 	// Out of any module directory, for the same reason Fetch is: inside one,
 	// the toolchain would resolve against that module's requirements instead of
 	// installing the latest.
@@ -105,12 +105,12 @@ func (c *Checker) Update(ctx context.Context) (UpdateResult, error) {
 func (c *Checker) runVersion(ctx context.Context, target string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.FetchTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, target, c.cfg.VersionArgs...)
+	cmd := exec.CommandContext(ctx, target, c.cfg.VersionArgs...) //nolint:gosec // target is the binary this process was told to update
 	cmd.Dir = os.TempDir()
 	cmd.WaitDelay = waitDelay
 	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("upcheck: run %s: %w", target, err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -158,7 +158,7 @@ func (c *Checker) installTarget(ctx context.Context) (string, error) {
 func (c *Checker) goBinDir(ctx context.Context) string {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.FetchTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, c.goCmd, "env", "GOBIN", "GOPATH")
+	cmd := exec.CommandContext(ctx, c.goCmd, "env", "GOBIN", "GOPATH") //nolint:gosec // goCmd comes from the caller's Config, not from untrusted input
 	cmd.Dir = os.TempDir()
 	cmd.WaitDelay = waitDelay
 	out, err := cmd.Output()
@@ -196,36 +196,39 @@ func isFile(p string) bool {
 // nothing to preserve, and refusing the install over it would be refusing a
 // first install.
 func copyBinary(src, dst string) error {
-	in, err := os.Open(src) //nolint:gosec // the path is the binary this process was told to update
+	in, err := os.Open(src)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
-		return err
+		return fmt.Errorf("upcheck: open %s: %w", src, err)
 	}
 	defer func() { _ = in.Close() }()
 
 	info, err := in.Stat()
 	if err != nil {
-		return err
+		return fmt.Errorf("upcheck: stat %s: %w", src, err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(dst), filepath.Base(dst)+".*")
 	if err != nil {
-		return err
+		return fmt.Errorf("upcheck: create a temporary file beside %s: %w", dst, err)
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	if _, err := io.Copy(tmp, in); err != nil {
 		_ = tmp.Close()
-		return err
+		return fmt.Errorf("upcheck: copy %s: %w", src, err)
 	}
 	if err := tmp.Chmod(info.Mode().Perm()); err != nil {
 		_ = tmp.Close()
-		return err
+		return fmt.Errorf("upcheck: set the mode of the copy of %s: %w", src, err)
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return fmt.Errorf("upcheck: close the copy of %s: %w", src, err)
 	}
-	return os.Rename(tmp.Name(), dst)
+	if err := os.Rename(tmp.Name(), dst); err != nil {
+		return fmt.Errorf("upcheck: move the copy of %s into place: %w", src, err)
+	}
+	return nil
 }
 
 // lockPath is the update lock for this binary, inside the cache directory
@@ -259,7 +262,10 @@ func (c *Checker) lock() (func(), error) {
 		}
 		return nil, fmt.Errorf("%w: %s (remove %s if that process is gone)", ErrLocked, holder(p), p)
 	}
-	host, _ := os.Hostname()
+	host, err := os.Hostname()
+	if err != nil {
+		host = "an unknown host"
+	}
 	// A lock that could not be described is still a lock: the file exists, so
 	// the second update still refuses. Only the sentence naming the holder is
 	// lost, which is why nothing here fails on a write error.
@@ -272,7 +278,7 @@ func (c *Checker) lock() (func(), error) {
 // second update returns. An unreadable lock still refuses the update; it just
 // cannot say more than that.
 func holder(p string) string {
-	data, err := os.ReadFile(p) //nolint:gosec // the path is this package's own lock file
+	data, err := os.ReadFile(p)
 	if err != nil || len(data) == 0 {
 		return "held by an unnamed process"
 	}
