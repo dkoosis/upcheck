@@ -110,7 +110,7 @@ func (c *Checker) runVersion(ctx context.Context, target string) (string, error)
 	cmd.WaitDelay = waitDelay
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("upcheck: run %s: %w", target, err)
+		return "", fmt.Errorf("run version probe: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -204,7 +204,7 @@ func copyBinary(src, dst string) error {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
-		return fmt.Errorf("upcheck: open %s: %w", src, err)
+		return fmt.Errorf("open current binary: %w", err)
 	}
 	defer func() { _ = in.Close() }()
 
