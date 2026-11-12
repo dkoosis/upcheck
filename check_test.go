@@ -132,26 +132,36 @@ func TestCheckStartsAResolutionOnlyWhenItIsWorthIt(t *testing.T) {
 			want:  1,
 		},
 		{
-			name:  "the stamp is old",
-			setup: func(t *testing.T, c *Checker) { seed(t, c, currentVersion, time.Now().Add(-48*time.Hour)) },
-			want:  1,
+			name: "the stamp is old",
+			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
+				seed(t, c, currentVersion, time.Now().Add(-48*time.Hour))
+			},
+			want: 1,
 		},
 		{
-			name:  "the stamp is fresh",
-			setup: func(t *testing.T, c *Checker) { seed(t, c, currentVersion, time.Now()) },
-			want:  0,
+			name: "the stamp is fresh",
+			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
+				seed(t, c, currentVersion, time.Now())
+			},
+			want: 0,
 		},
 		{
 			name: "this is a checkout build",
 			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
 				c.SetBuildForTest(t, Build{Version: currentVersion, Revision: "abc123"})
 			},
 			want: 0,
 		},
 		{
-			name:  "the caller silenced it",
-			setup: func(t *testing.T, c *Checker) { t.Setenv(c.SilenceEnv(), "1") },
-			want:  0,
+			name: "the caller silenced it",
+			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
+				t.Setenv(c.SilenceEnv(), "1")
+			},
+			want: 0,
 		},
 	}
 	for _, tc := range cases {
@@ -177,7 +187,10 @@ func TestCheckStartsOneResolutionWhileTheFirstIsStillRunning(t *testing.T) {
 		setup func(t *testing.T, c *Checker)
 	}{
 		{"nothing has been checked yet", func(*testing.T, *Checker) {}},
-		{"the stamp is old", func(t *testing.T, c *Checker) { seed(t, c, newerVersion, time.Now().Add(-48*time.Hour)) }},
+		{"the stamp is old", func(t *testing.T, c *Checker) {
+			t.Helper()
+			seed(t, c, newerVersion, time.Now().Add(-48*time.Hour))
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := newChecker(t)

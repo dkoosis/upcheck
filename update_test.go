@@ -35,7 +35,7 @@ func newFakeInstall(t *testing.T, version string) fakeInstall {
 func writeFakeBinary(t *testing.T, path, version string) {
 	t.Helper()
 	script := fmt.Sprintf("#!/bin/sh\necho %s %s\n", testBinary, version)
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil { //nolint:gosec // a fake binary must be executable
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatalf("writing the fake binary: %v", err)
 	}
 }

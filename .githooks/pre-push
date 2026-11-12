@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-push — tracked hook (shape B). core.hooksPath points at .githooks; `conform --local`
+# pre-push — tracked hook (shape B). core.hooksPath points at .githooks; `repo-standard --local`
 # checks that it does.
 set -euo pipefail
 

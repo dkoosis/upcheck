@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# post-checkout — tracked hook (shape B). core.hooksPath points at .githooks; `conform --local`
+# post-checkout — tracked hook (shape B). core.hooksPath points at .githooks; `repo-standard --local`
 # checks that it does.
 set -euo pipefail
 

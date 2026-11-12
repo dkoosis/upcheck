@@ -119,12 +119,15 @@ func (c *Checker) spawnRefresh(ctx context.Context) {
 	// read and no answer anybody is waiting for, so all three streams go to the
 	// null device rather than into the parent's output.
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
+	// The parent never calls Wait, so WaitDelay bounds nothing here; it is set
+	// so that a caller who does Wait cannot hang on a grandchild's pipe.
+	cmd.WaitDelay = waitDelay
 	if err := cmd.Start(); err != nil {
 		return
 	}
 	// Release drops the parent's claim on the child, so the parent exits
 	// without waiting and without leaving a zombie behind.
-	_ = cmd.Process.Release()
+	_ = cmd.Process.Release() //nolint:errcheck // best-effort: the child already runs detached, and a failed Release leaves nothing to undo
 }
 
 // Refresh resolves what is published and records it, returning the stamp it
@@ -170,7 +173,7 @@ func (c *Checker) Refresh(ctx context.Context) (Stamp, error) {
 // `go install`, so a machine that cannot run `go` could not act on the answer
 // anyway.
 func (c *Checker) Fetch(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, c.goCmd, "list", "-m", "-json", c.cfg.Module+"@latest")
+	cmd := exec.CommandContext(ctx, c.goCmd, "list", "-m", "-json", c.cfg.Module+"@latest") //nolint:gosec // goCmd and Module come from the caller's Config, not from untrusted input
 	// A module directory would make the toolchain resolve against that module's
 	// requirements rather than answer about the latest. Asking from the temp
 	// directory keeps the question the one that was asked.

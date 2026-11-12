@@ -9,5 +9,5 @@
 ## Verification
 
 - [ ] `make check` green
-- [ ] `conform` green
+- [ ] `repo-standard` green
 - [ ] acceptance criteria of the bead met

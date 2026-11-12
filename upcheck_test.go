@@ -60,7 +60,7 @@ func stubGo(t *testing.T, body string) string {
 	}
 	path := filepath.Join(t.TempDir(), "go")
 	script := "#!/bin/sh\n" + body + "\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil { //nolint:gosec // a test stub must be executable
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatalf("writing the toolchain stub: %v", err)
 	}
 	return path
@@ -94,6 +94,12 @@ func TestNewDefaults(t *testing.T) {
 	}
 	if got, want := c.InstallCommand(), "go install "+testModule+"/cmd/go-tool@latest"; got != want {
 		t.Errorf("InstallCommand = %q, want %q", got, want)
+	}
+	if got := c.Module(); got != testModule {
+		t.Errorf("Module = %q, want %q", got, testModule)
+	}
+	if got, want := c.Binary(), "go-tool"; got != want {
+		t.Errorf("Binary = %q, want %q", got, want)
 	}
 }
 
@@ -283,15 +289,22 @@ func TestNoticeIsSilent(t *testing.T) {
 		},
 		{
 			name: "the build is current",
-			setup: func(t *testing.T, c *Checker) { seed(t, c, currentVersion, time.Now()) },
+			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
+				seed(t, c, currentVersion, time.Now())
+			},
 		},
 		{
 			name: "the check failed and recorded no version",
-			setup: func(t *testing.T, c *Checker) { seed(t, c, "", time.Now()) },
+			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
+				seed(t, c, "", time.Now())
+			},
 		},
 		{
 			name: "this is a checkout build",
 			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
 				seed(t, c, newerVersion, time.Now())
 				c.SetBuildForTest(t, Build{Version: currentVersion, Revision: "abc123"})
 			},
@@ -299,6 +312,7 @@ func TestNoticeIsSilent(t *testing.T) {
 		{
 			name: "the caller silenced it",
 			setup: func(t *testing.T, c *Checker) {
+				t.Helper()
 				seed(t, c, newerVersion, time.Now())
 				t.Setenv(c.SilenceEnv(), "1")
 			},

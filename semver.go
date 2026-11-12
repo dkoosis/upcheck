@@ -47,8 +47,7 @@ func parseSemver(v string) (semverParts, bool) {
 	// Build metadata first: it may contain characters the prerelease grammar
 	// forbids, and it never affects anything below.
 	if i := strings.IndexByte(rest, '+'); i >= 0 {
-		build := rest[i+1:]
-		if !validDotSeparated(build, false) {
+		if !validDotSeparated(rest[i+1:], false) {
 			return p, false
 		}
 		rest = rest[:i]
@@ -60,24 +59,26 @@ func parseSemver(v string) (semverParts, bool) {
 		}
 		rest = rest[:i]
 	}
-	for i := range 3 {
-		field := rest
-		if i < 2 {
-			var found bool
-			field, rest, found = strings.Cut(rest, ".")
-			if !found {
-				return p, false
-			}
-		} else if strings.Contains(rest, ".") {
-			return p, false
-		}
+	num, ok := parseCore(rest)
+	p.num = num
+	return p, ok
+}
+
+// parseCore reads the MAJOR.MINOR.PATCH core: exactly three numeric fields.
+func parseCore(s string) ([3]uint64, bool) {
+	var num [3]uint64
+	fields := strings.Split(s, ".")
+	if len(fields) != len(num) {
+		return num, false
+	}
+	for i, field := range fields {
 		n, ok := parseNumericID(field)
 		if !ok {
-			return p, false
+			return num, false
 		}
-		p.num[i] = n
+		num[i] = n
 	}
-	return p, true
+	return num, true
 }
 
 // validDotSeparated checks a prerelease or build-metadata string: dot-separated
@@ -89,19 +90,9 @@ func validDotSeparated(s string, numericRule bool) bool {
 		return false
 	}
 	for id := range strings.SplitSeq(s, ".") {
-		if id == "" {
+		numeric, ok := classifyIdentifier(id)
+		if !ok {
 			return false
-		}
-		numeric := true
-		for i := range len(id) {
-			ch := id[i]
-			switch {
-			case ch >= '0' && ch <= '9':
-			case (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '-':
-				numeric = false
-			default:
-				return false
-			}
 		}
 		if numericRule && numeric {
 			if _, ok := parseNumericID(id); !ok {
@@ -110,6 +101,26 @@ func validDotSeparated(s string, numericRule bool) bool {
 		}
 	}
 	return true
+}
+
+// classifyIdentifier reports whether id is well formed (non-empty, only
+// alphanumerics and hyphens) and whether it is all digits.
+func classifyIdentifier(id string) (numeric, ok bool) {
+	if id == "" {
+		return false, false
+	}
+	numeric = true
+	for i := range len(id) {
+		ch := id[i]
+		switch {
+		case ch >= '0' && ch <= '9':
+		case (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '-':
+			numeric = false
+		default:
+			return false, false
+		}
+	}
+	return numeric, true
 }
 
 // parseNumericID reads a semver numeric identifier: digits, no leading zero

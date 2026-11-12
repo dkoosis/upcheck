@@ -1,0 +1,32 @@
+name: audit
+
+# The slow gates (race, fuzz, dupe, nilcheck, deadcode, omitempty, vuln) run
+# daily and on demand, not on every PR.
+on:
+  schedule:
+    - cron: '41 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      - name: install linter (version pinned in .sandbox/project.conf)
+        run: |
+          . ./.sandbox/project.conf
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@"$GOLANGCI_LINT_VERSION"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: audit
+        run: make audit
