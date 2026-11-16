@@ -11,8 +11,7 @@ SHELL := /bin/bash
 # Tool pins: bumping one is a deliberate PR. These are tools run with go run /
 # npx, not runtime imports — the zero-dependency rule in
 # .claude/rules/standard-repo.md is about go list -deps.
-REPO_STANDARD_VER := v0.4.0
-OMITEMPTYSCALAR_VER := v0.4.0
+OMITEMPTYSCALAR_VER := v0.4.1
 GOVULNCHECK_VER := v1.9.0
 NILAWAY_VER := v0.0.0-20260918162853-acb8859b9031
 DEADCODE_VER := v0.52.0
@@ -40,8 +39,8 @@ test: ## Run tests with coverage
 build: ## Compile everything
 	go build ./...
 
-standard: ## Run repo-standard (fleet SDLC checker) against this repo
-	go run github.com/dkoosis/repo-standard/cmd/repo-standard@$(REPO_STANDARD_VER)
+standard: ## Run the current repo-standard (main, unpinned) against this repo
+	GOPRIVATE=github.com/dkoosis/repo-standard go run github.com/dkoosis/repo-standard/cmd/repo-standard@main
 
 race: ## Run tests with the race detector (fresh run)
 	go test -race -count=1 -cover ./...
